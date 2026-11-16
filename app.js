@@ -31,6 +31,14 @@
     if (text !== undefined && text !== null) e.textContent = String(text);
     return e;
   }
+  // Phone mode: decided from the width the app is given (and touch), so it works in a phone browser and inside Tableau.
+  // Everything phone-specific checks MOB; with MOB false the app draws exactly as on desktop.
+  var MOB = false;
+  function detectMobile() {
+    var w = window.innerWidth || 1200, coarse = false;
+    try { coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) { /* ignore */ }
+    return w <= 640 || (coarse && w <= 900);
+  }
   function svgRoot(w, h) { return sv('svg', { viewBox: '0 0 ' + w + ' ' + h, preserveAspectRatio: 'xMidYMid meet', role: 'img' }); }
   function num(v) { if (v === null || v === undefined || v === '') return null; var n = Number(v); return isFinite(n) ? n : null; }
   function pct(a, b, d) { return b ? (100 * a / b).toFixed(d === undefined ? 1 : d) + '%' : '—'; }
@@ -327,7 +335,7 @@
       'From 1998 to 2000 Federer won ' + earlyPP.toFixed(1) + '% of his points, about even with his opponents. In ' + peak.y + ' he won ' +
       peak.pp.toFixed(1) + '%, and that was enough to win ' + peak.wp.toFixed(0) + '% of his matches (' + peak.w + '–' + (peak.n - peak.w) + ').'));
 
-    var W = 960, H = 470, ml = 56, mr = 24, top1 = 20, h1 = 170, top2 = 250, h2 = 150;
+    var W = MOB ? 420 : 960, H = 470, ml = MOB ? 40 : 56, mr = MOB ? 12 : 24, top1 = 20, h1 = 170, top2 = 250, h2 = 150;
     var x = scale(S[0].y - 0.5, S[S.length - 1].y + 0.5, ml, W - mr);
     var y1 = scale(30, 100, top1 + h1, top1);
     var y2 = scale(46, 58, top2 + h2, top2);
@@ -364,8 +372,8 @@
       if (s.pp !== null) add(svg, sv('circle', { cx: x(s.y), cy: y2(s.pp), r: isPeak ? 5 : 3.2, fill: isPeak ? C.grass : C.paper, stroke: C.grass, 'stroke-width': 1.6 }));
       // majors as gold dots under the chart
       for (var i = 0; i < s.slams; i++) add(svg, sv('circle', { cx: x(s.y), cy: H - 46 + i * 9, r: 3.4, fill: C.gold }));
-      add(svg, sv('text', { x: x(s.y), y: H - 52 - 6, 'text-anchor': 'middle', class: 'lbl' }, (s.y % 2 === 0 || s.y === S[0].y) ? String(s.y) : ''));
-      var hit = sv('rect', { x: x(s.y) - 18, y: top1, width: 36, height: H - top1 - 20, fill: 'transparent' });
+      add(svg, sv('text', { x: x(s.y), y: H - 52 - 6, 'text-anchor': 'middle', class: 'lbl' }, (MOB ? s.y % 4 === 0 : (s.y % 2 === 0 || s.y === S[0].y)) ? String(s.y) : ''));
+      var hit = sv('rect', { x: x(s.y) - (MOB ? 8 : 18), y: top1, width: MOB ? 16 : 36, height: H - top1 - 20, fill: 'transparent' });
       hit.addEventListener('mousemove', function (e) { showTip(e, String(s.y), tipLines); });
       hit.addEventListener('mouseleave', hideTip);
       add(svg, hit);
@@ -401,14 +409,14 @@
 
     // One dot chart. Picking Nadal or Djokovic moves Federer's dots into that player's career shape.
     var SUM = {}; RIVAL_SUMMARY.forEach(function (s) { SUM[s.name] = s; });
-    var lo = 30, hi = 80;
+    var lo = 30, hi = 80, MB = MOB ? 2 : 1;   // phones: 2-point bins so the dots stay big enough to tap
     var PL = [
       { name: 'Roger Federer', short: 'Federer', list: stat.map(function (m) { return { pp: m.pp, win: !!m.win, m: m }; }) },
       { name: 'Rafael Nadal', short: 'Nadal', list: RIVAL_DOTS['Rafael Nadal'].map(function (d) { return { pp: d[0], win: !!d[1] }; }) },
       { name: 'Novak Djokovic', short: 'Djokovic', list: RIVAL_DOTS['Novak Djokovic'].map(function (d) { return { pp: d[0], win: !!d[1] }; }) }];
     function binsOf(list) {
       var bins = {};
-      list.forEach(function (d) { var b = Math.max(lo, Math.min(hi - 1, Math.floor(d.pp))); var k = b + (d.win ? 'W' : 'L'); (bins[k] || (bins[k] = [])).push(d); });
+      list.forEach(function (d) { var b = MB * Math.floor(Math.max(lo, Math.min(hi - 0.001, d.pp)) / MB); var k = b + (d.win ? 'W' : 'L'); (bins[k] || (bins[k] = [])).push(d); });
       return bins;
     }
     var maxW = 0, maxL = 0;
@@ -416,11 +424,11 @@
       p.bins = binsOf(p.list);
       Object.keys(p.bins).forEach(function (k) { if (k.slice(-1) === 'W') maxW = Math.max(maxW, p.bins[k].length); else maxL = Math.max(maxL, p.bins[k].length); });
     });
-    var W = 960, ml = 30, mr = 30;
-    var bw = (W - ml - mr) / (hi - lo);
+    var W = MOB ? 440 : 960, ml = MOB ? 16 : 30, mr = MOB ? 16 : 30;
+    var bw = (W - ml - mr) / (hi - lo) * MB;
     var perRow = 2, sp = bw / perRow;
-    while (Math.ceil(maxW / perRow) * sp > 330 && perRow < 6) { perRow++; sp = bw / perRow; }
-    var r = Math.max(1.4, sp * 0.38);
+    while (Math.ceil(maxW / perRow) * sp > (MOB ? 360 : 330) && perRow < 6) { perRow++; sp = bw / perRow; }
+    var r = Math.max(1.4, sp * (MOB ? 0.44 : 0.38));
     var upH = Math.ceil(maxW / perRow) * sp, dnH = Math.ceil(maxL / perRow) * sp;
     var axisY = upH + 62, H = axisY + dnH + 70;
     var x = scale(lo, hi, ml, W - mr);
@@ -480,11 +488,32 @@
       });
     });
     add(svg, dotsG);
+    // phones: dots are too small to tap one by one, so each column is one tap target with its counts
+    var binHits = null;
+    if (MOB) {
+      binHits = sv('g', {}); add(svg, binHits);
+      var drawHits = function (p) {
+        binHits.textContent = '';
+        for (var b0 = lo; b0 < hi; b0 += MB) (function (b0) {
+          var w = p.bins[b0 + 'W'] || [], l = p.bins[b0 + 'L'] || [];
+          if (!w.length && !l.length) return;
+          var against = w.concat(l).filter(function (d) { return d.hl; }).length;
+          var hr = sv('rect', { x: x(b0), y: 20, width: bw, height: H - 40, fill: 'transparent' });
+          hr.addEventListener('mousemove', function (e) {
+            showTip(e, p.short + ' · ' + b0 + '–' + (b0 + MB) + '% of points', [w.length + ' win' + (w.length === 1 ? '' : 's') + ', ' + l.length + ' loss' + (l.length === 1 ? '' : 'es'),
+              against ? against + ' went against the points' : 'none went against the points']);
+          });
+          hr.addEventListener('mouseleave', hideTip);
+          add(binHits, hr);
+        })(b0);
+      };
+    }
 
     var anim = null;
     function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function show(p, instant) {
       curName = p.name;
+      if (binHits) drawHits(p);
       var fed = p === PL[0];
       pool.forEach(function (o) {
         var arr = p[o.grp];
@@ -556,21 +585,21 @@
       '. Nadal finished ' + sg(N.wonFewer - N.lostMore) + ' and Djokovic ' + sg(D.wonFewer - D.lostMore) + '. Every other great player below lands between ' + sg(oLo) + ' and ' + sg(oHi) + '.'));
     add(sec, sub);
 
-    var LW = 960, lab = 230, netW = 80, rowH = 44, top = 46;
+    var LW = MOB ? 440 : 960, lab = MOB ? 118 : 230, netW = MOB ? 44 : 80, rowH = 44, top = 46;
     var LH = top + rows.length * rowH + 30;
     var cx0 = lab + (LW - lab - netW) / 2, half = (LW - lab - netW) / 2 - 30;
     var maxC = Math.max.apply(null, rows.map(function (o) { return Math.max(o.lostMore, o.wonFewer); }));
     var bx = function (v) { return v / maxC * half; };
     var lsvg = svgRoot(LW, LH);
-    add(lsvg, sv('text', { x: cx0 - 8, y: 18, 'text-anchor': 'end', class: 'lbl-ink', fill: C.purple }, '← Lost despite winning more points'));
-    add(lsvg, sv('text', { x: cx0 + 8, y: 18, class: 'lbl-ink', fill: C.grass }, 'Won despite winning fewer points →'));
+    add(lsvg, sv('text', { x: cx0 - 8, y: 18, 'text-anchor': 'end', class: 'lbl-ink', fill: C.purple }, MOB ? '← Lost, more pts' : '← Lost despite winning more points'));
+    add(lsvg, sv('text', { x: cx0 + 8, y: 18, class: 'lbl-ink', fill: C.grass }, MOB ? 'Won, fewer pts →' : 'Won despite winning fewer points →'));
     add(lsvg, sv('text', { x: LW - 4, y: 18, 'text-anchor': 'end', class: 'lbl-ink' }, 'Net'));
     rows.forEach(function (o, i) {
       var y0 = top + i * rowH, cy = y0 + rowH / 2, fed = o.name === 'Roger Federer';
       var g = sv('g', {});
       if (fed) add(g, sv('rect', { x: 0, y: y0 + 2, width: LW, height: rowH - 4, fill: C.goldSoft, opacity: 0.45, rx: 3 }));
       add(g, sv('text', { x: 10, y: cy - 2, class: fed ? 'lbl-serif' : 'lbl-ink', 'font-weight': fed ? 600 : 400 }, o.name));
-      add(g, sv('text', { x: 10, y: cy + 13, class: 'lbl' }, fmt(o.n) + ' matches · ' + o.y0 + '–' + o.y1));
+      add(g, sv('text', { x: 10, y: cy + 13, class: 'lbl' }, fmt(o.n) + ' matches' + (MOB ? '' : ' · ' + o.y0 + '–' + o.y1)));
       add(g, sv('rect', { x: cx0 - bx(o.lostMore), y: cy - 9, width: bx(o.lostMore), height: 18, fill: C.purple, opacity: fed ? 1 : 0.7 }));
       add(g, sv('rect', { x: cx0, y: cy - 9, width: bx(o.wonFewer), height: 18, fill: C.grass, opacity: fed ? 1 : 0.7 }));
       add(g, sv('text', { x: cx0 - bx(o.lostMore) - 6, y: cy + 4, 'text-anchor': 'end', class: 'lbl-ink' }, o.lostMore));
@@ -614,6 +643,7 @@
     var focus = { 'Rafael Nadal': 1, 'Novak Djokovic': 1, 'Andy Murray': 1 };
     var named = { 'Rafael Nadal': 1, 'Novak Djokovic': 1, 'Andy Murray': 1, 'Andy Roddick': 1, 'Lleyton Hewitt': 1, 'Andre Agassi': 1,
       'Stan Wawrinka': 1, 'Juan Martin del Potro': 1, 'David Nalbandian': 1, 'Tomas Berdych': 1 };
+    if (MOB) named = { 'Rafael Nadal': 1, 'Novak Djokovic': 1, 'Andy Murray': 1, 'Andy Roddick': 1 };   // phones: label the main rivals only
     var nadal = opp['Rafael Nadal'], djok = opp['Novak Djokovic'], rod = opp['Andy Roddick'];
 
     var sec = el('section', 'ch');
@@ -623,7 +653,7 @@
       ') he won about half the points: ' + nadal.pp.toFixed(1) + '% and ' + djok.pp.toFixed(1) + '%. Against Roddick he won ' + rod.pp.toFixed(1) +
       '%, and the record was ' + rod.w + '–' + (rod.n - rod.w) + '.'));
 
-    var W = 960, H = 560, ml = 60, mr = 30, mt = 44, mb = 50;
+    var W = MOB ? 440 : 960, H = MOB ? 500 : 560, ml = MOB ? 40 : 60, mr = MOB ? 14 : 30, mt = 44, mb = 50;
     var X0 = 42, X1 = 62;
     var xs = scale(X0, X1, ml, W - mr), ys = scale(0, 100, H - mb, mt);
     var svg = svgRoot(W, H);
@@ -648,7 +678,8 @@
     if (at54 !== null) {
       add(svg, sv('circle', { cx: xs(54), cy: ys(at54), r: 6, fill: C.grass }));
       add(svg, sv('line', { x1: xs(54), x2: xs(55.4), y1: ys(at54), y2: ys(36), stroke: C.grass, 'stroke-width': 0.8 }));
-      add(svg, sv('text', { x: xs(55.4) + 4, y: ys(36) + 4, class: 'callout' }, '54% of points → won ' + at54 + '% of matches'));
+      if (MOB) { add(svg, sv('text', { x: xs(55.4) + 4, y: ys(36) + 4, class: 'callout' }, '54% of points →')); add(svg, sv('text', { x: xs(55.4) + 4, y: ys(36) + 22, class: 'callout' }, 'won ' + at54 + '% of matches')); }
+      else add(svg, sv('text', { x: xs(55.4) + 4, y: ys(36) + 4, class: 'callout' }, '54% of points → won ' + at54 + '% of matches'));
     }
     // opponent tiers on the same curve
     tierPoints(M).forEach(function (t) {
@@ -1297,7 +1328,7 @@
           return { w: r.n, shot: { letter: LET[r.shot] || 'q', dir: DIRK[r.target] || '0', depth: DEPK[r.depth] || '', isReturn: r.phase === 'Return',
             outcome: r.outcome, miss: r.miss === 'None' ? '' : r.miss } };
         });
-        add(courtA, dotCourt(items, { scale: 18, cap: 1800, seed: 3, title: 'Federer \u2191', noLabels: true }));
+        add(courtA, dotCourt(items, { scale: 18, cap: MOB ? 900 : 1800, half: MOB, seed: 3, title: 'Federer \u2191', noLabels: true }));
         add(courtA, dotLegend());
       } else add(courtA, fc.svg);
       var A = fc.agg;
@@ -2380,7 +2411,7 @@
   function speedStrip(MS) {
     var box = el('div', 'speed');
     add(box, el('div', 'mini-title rp-title', 'Every Federer serve, by speed'));
-    var W = 960, H = 170, ml = 110, mr = 24, rows = { 1: 52, 2: 112 };
+    var W = MOB ? 440 : 960, H = 170, ml = MOB ? 84 : 110, mr = MOB ? 28 : 24, rows = { 1: 52, 2: 112 };
     var ks = MS.speeds.map(function (s) { return s.mph; });
     var lo = Math.max(60, Math.floor(Math.min.apply(null, ks) / 10) * 10 - 10), hi = Math.min(160, Math.ceil(Math.max.apply(null, ks) / 10) * 10 + 10);
     var x = scale(lo, hi, ml, W - mr);
@@ -2797,7 +2828,7 @@
       ', higher than in his peak years. His return peaked at age ' + peakRt.age + ' (' + pct(peakRt.rt * 100, 100) + ' of return points won) and then slowly declined. The late-career Federer won by shortening points and holding serve.'));
 
     // panel 1: serve and return by age, two stacked panels sharing the age axis
-    var W = 960, H = 380, ml = 60, mr = 30, t1 = 30, h1 = 130, t2 = 220, h2 = 120;
+    var W = MOB ? 440 : 960, H = 380, ml = MOB ? 42 : 60, mr = MOB ? 12 : 30, t1 = 30, h1 = 130, t2 = 220, h2 = 120;
     var x = scale(ages[0] - 0.5, ages[ages.length - 1] + 0.5, ml, W - mr);
     var ySv = scale(0.60, 0.74, t1 + h1, t1), yRt = scale(0.34, 0.44, t2 + h2, t2);
     var svg = svgRoot(W, H);
@@ -2815,7 +2846,7 @@
       });
     }
     line(function (r) { return r.sv; }, ySv, C.grass); line(function (r) { return r.rt; }, yRt, C.purple);
-    A.forEach(function (r) { if (r.age % 2 === 0) add(svg, sv('text', { x: x(r.age), y: H - 8, 'text-anchor': 'middle', class: 'lbl' }, 'age ' + r.age)); });
+    A.forEach(function (r) { if (r.age % (MOB ? 4 : 2) === 0) add(svg, sv('text', { x: x(r.age), y: H - 8, 'text-anchor': 'middle', class: 'lbl' }, 'age ' + r.age)); });
     var c1 = el('div', 'chart'); add(c1, svg); add(sec, reveal(c1));
     add(sec, el('p', 'note', 'Each dot is one year of age with at least 20 matches with serve stats. The two panels use different scales because service points are won far more often than return points.'));
 
@@ -2839,7 +2870,7 @@
     add(p2, el('p', 'sub', 'Dominance ratio is the share of return points he won divided by the share his opponents won on their return. Above 1 means he was out-pointing his opponents. From 2014 to 2019 his ratio was ' + late.dr.toFixed(2) +
       ', essentially the same as at his 2004\u201307 peak (' + peak.dr.toFixed(2) + '). Yet he won ' + pct(late.win * 100, 100, 0) + ' of his matches (' + late.w + '\u2013' + late.l + ') rather than ' + pct(peak.win * 100, 100, 0) +
       ' (' + peak.w + '\u2013' + peak.l + '). The same points bought fewer wins, which suggests the difference came on the big points. That is what the next chapter looks at.'));
-    var W2 = 960, H2 = 250, mt2 = 20, mb2 = 34;
+    var W2 = MOB ? 440 : 960, H2 = 250, mt2 = 20, mb2 = 34;
     var x2 = scale(Ys[0] - 0.5, Ys[Ys.length - 1] + 0.5, ml, W2 - mr), y2 = scale(0.9, 1.5, H2 - mb2, mt2);
     var svg2 = svgRoot(W2, H2);
     [1.0, 1.2, 1.4].forEach(function (t) { add(svg2, sv('line', { x1: ml, x2: W2 - mr, y1: y2(t), y2: y2(t), stroke: t === 1 ? C.gold : C.rule, 'stroke-dasharray': t === 1 ? '3 3' : null })); add(svg2, sv('text', { x: ml - 8, y: y2(t) + 4, 'text-anchor': 'end', class: 'lbl' }, t.toFixed(1))); });
@@ -2851,7 +2882,7 @@
       c0.addEventListener('mousemove', function (e) { showTip(e, String(d.y), ['Dominance ratio ' + d.dr.toFixed(2), 'Matches won ' + pct(d.win * 100, 100, 0) + ' (' + d.n + ' matches)']); });
       c0.addEventListener('mouseleave', hideTip); add(svg2, c0);
       if (hl) add(svg2, sv('text', { x: x2(d.y), y: y2(d.dr) - 12, 'text-anchor': 'middle', class: 'callout' }, d.y + ': ' + d.dr.toFixed(2) + ' · won ' + pct(d.win * 100, 100, 0)));
-      if (d.y % 2 === 0) add(svg2, sv('text', { x: x2(d.y), y: H2 - 10, 'text-anchor': 'middle', class: 'lbl' }, String(d.y)));
+      if (d.y % (MOB ? 4 : 2) === 0) add(svg2, sv('text', { x: x2(d.y), y: H2 - 10, 'text-anchor': 'middle', class: 'lbl' }, String(d.y)));
     });
     add(svg2, sv('text', { x: W2 - mr, y: y2(1.0) - 6, 'text-anchor': 'end', class: 'callout-sm', fill: C.gold }, 'even with opponents'));
     var c2 = el('div', 'chart'); add(c2, svg2); add(p2, c2); add(sec, reveal(p2));
@@ -2911,18 +2942,18 @@
     var p1 = el('div', 'panel');
     add(p1, el('h3', null, 'The pressure gap, opponent by opponent'));
     add(p1, el('p', 'sub', 'Each dot shows how much better (right) or worse (left) he did on break points than on ordinary points against that opponent. On serve, it compares break points saved with service points won. On return, it compares break points converted with return points won.'));
-    var W = 960, rowH = 30, H = 46 + R.length * rowH, ml = 210, mid = 20, half = (W - ml - mid) / 2;
+    var W = MOB ? 440 : 960, rowH = 30, H = 46 + R.length * rowH, ml = MOB ? 104 : 210, mid = MOB ? 12 : 20, half = (W - ml - mid) / 2;
     var xs = scale(-0.08, 0.08, ml, ml + half), xr = scale(-0.08, 0.08, ml + half + mid, W);
     var svg = svgRoot(W, H);
-    add(svg, sv('text', { x: ml + half / 2, y: 14, 'text-anchor': 'middle', class: 'lbl-ink' }, 'On serve: saving break points'));
-    add(svg, sv('text', { x: ml + half + mid + half / 2, y: 14, 'text-anchor': 'middle', class: 'lbl-ink' }, 'On return: converting break points'));
+    add(svg, sv('text', { x: ml + half / 2, y: 14, 'text-anchor': 'middle', class: 'lbl-ink' }, MOB ? 'Saving BPs' : 'On serve: saving break points'));
+    add(svg, sv('text', { x: ml + half + mid + half / 2, y: 14, 'text-anchor': 'middle', class: 'lbl-ink' }, MOB ? 'Converting BPs' : 'On return: converting break points'));
     [xs, xr].forEach(function (xx) {
       add(svg, sv('line', { x1: xx(0), x2: xx(0), y1: 24, y2: H - 10, stroke: C.gold, 'stroke-dasharray': '3 3' }));
       [-0.05, 0.05].forEach(function (t) { add(svg, sv('text', { x: xx(t), y: H - 2, 'text-anchor': 'middle', class: 'lbl' }, (t > 0 ? '+' : '') + (t * 100) + ' pts')); });
     });
     R.forEach(function (r, i) {
       var cy = 36 + i * rowH;
-      add(svg, sv('text', { x: 0, y: cy + 4, class: i === 0 ? 'lbl-serif' : 'lbl-ink' }, r.name === 'Everyone' ? 'All opponents' : r.name));
+      add(svg, sv('text', { x: 0, y: cy + 4, class: i === 0 ? 'lbl-serif' : 'lbl-ink' }, r.name === 'Everyone' ? (MOB ? 'All' : 'All opponents') : (MOB ? r.name.split(' ').slice(-1)[0] : r.name)));
       add(svg, sv('line', { x1: ml, x2: W, y1: cy, y2: cy, stroke: C.rule, opacity: 0.6 }));
       [[xs, r.dS, r.bpS, r.sv, r.bf, 'saved'], [xr, r.dC, r.bpC, r.rt, r.bc, 'converted']].forEach(function (q) {
         var v = Math.max(-0.08, Math.min(0.08, q[1])), col = q[1] >= 0 ? C.grass : C.purple;
@@ -2930,7 +2961,9 @@
         var c0 = sv('circle', { cx: q[0](v), cy: cy, r: 6, fill: col });
         c0.addEventListener('mousemove', function (e) { showTip(e, r.name === 'Everyone' ? 'All opponents' : r.name, ['Break points ' + q[5] + ': ' + pct(q[2] * 100, 100) + ' of ' + fmt(q[4]), 'Usual level: ' + pct(q[3] * 100, 100), 'Difference: ' + (q[1] >= 0 ? '+' : '') + (q[1] * 100).toFixed(1) + ' points']); });
         c0.addEventListener('mouseleave', hideTip); add(svg, c0);
-        add(svg, sv('text', { x: q[0](v) + (q[1] >= 0 ? 10 : -10), y: cy + 4, 'text-anchor': q[1] >= 0 ? 'start' : 'end', class: 'lbl' }, (q[1] >= 0 ? '+' : '') + (q[1] * 100).toFixed(1)));
+        // phones: the value sits beside the zero line, on the side away from the dot, so the two halves never collide
+        if (MOB) add(svg, sv('text', { x: q[0](0) + (q[1] >= 0 ? -6 : 6), y: cy + 4, 'text-anchor': q[1] >= 0 ? 'end' : 'start', class: 'lbl' }, (q[1] >= 0 ? '+' : '') + (q[1] * 100).toFixed(1)));
+        else add(svg, sv('text', { x: q[0](v) + (q[1] >= 0 ? 10 : -10), y: cy + 4, 'text-anchor': q[1] >= 0 ? 'start' : 'end', class: 'lbl' }, (q[1] >= 0 ? '+' : '') + (q[1] * 100).toFixed(1)));
       });
     });
     var c1 = el('div', 'chart'); add(c1, svg); add(p1, c1); add(sec, reveal(p1));
@@ -3009,8 +3042,8 @@
     add(p, el('h3', null, 'The backhand that finally solved Nadal'));
     add(p, el('p', 'sub', 'For years Nadal’s high, heavy forehand pinned Federer’s one-handed backhand: just ' + pct(D[0][1].w * 100, 100) + ' of his backhand drives against Nadal were winners, against ' + pct(D[2][1].w * 100, 100) +
       ' versus everyone else. From 2017, with the bigger racquet he had adopted in 2014 and a more aggressive, earlier backhand, that rose to ' + pct(D[1][1].w * 100, 100) + ', and he beat Nadal in all four of their meetings that year.'));
-    var W = 960, H = 150, ml = 200, rowH = 38;
-    var x = scale(0, 0.08, ml, W - 140), svg = svgRoot(W, H);
+    var W = MOB ? 440 : 960, H = 150, ml = MOB ? 130 : 200, rowH = 38;
+    var x = scale(0, 0.08, ml, W - (MOB ? 70 : 140)), svg = svgRoot(W, H);
     D.forEach(function (d, i) {
       var cy = 24 + i * rowH, col = i === 1 ? C.gold : i === 0 ? C.purple : C.grey;
       add(svg, sv('text', { x: 0, y: cy + 5, class: 'lbl-ink' }, d[0]));
@@ -3180,7 +3213,7 @@
 
   // Shared frame: set scoreboard strip, bands, tiebreak hatching, per-set points row, result tag.
   function momFrame(series, m, S, uid, dom, endVal) {
-    var F = { W: 960, H: 410, ml: 44, mr: 132, mt: 66, mb: 78 }, n = series.length, opp = lastName(m);
+    var F = MOB ? { W: 400, H: 420, ml: 32, mr: 12, mt: 66, mb: 112 } : { W: 960, H: 410, ml: 44, mr: 132, mt: 66, mb: 78 }, n = series.length, opp = lastName(m);
     F.x = scale(0, n, F.ml, F.W - F.mr); F.y = scale(dom[0], dom[1], F.H - F.mb, F.mt);
     var x = F.x, H = F.H, mt = F.mt, mb = F.mb, mr = F.mr;
     var svg = F.svg = svgRoot(F.W, H);
@@ -3318,11 +3351,20 @@
     };
     F.tag = function (sub) {
       var won = !!m.win, yy = F.y(endVal);
+      if (MOB) {   // phones: the result sits on its own line under the chart instead of in a right-hand margin
+        var gm = F.tagG = sv('g', {}), ty2 = H - mb + 50, tw = (won ? 'Federer' : opp).length * 6.2 + 46;
+        add(gm, sv('rect', { x: F.ml, y: ty2, width: tw, height: 20, rx: 2, fill: won ? C.grass : C.purple }));
+        add(gm, sv('text', { x: F.ml + tw / 2, y: ty2 + 14, 'text-anchor': 'middle', class: 'mom-set mom-set-s' }, (won ? 'Federer' : opp).toUpperCase() + ' WINS'));
+        var st2 = sv('text', { x: F.ml + tw + 8, y: ty2 + 14, class: 'lbl-ink' });
+        sub.forEach(function (q, k) { add(st2, sv('tspan', { fill: q[1] || (k ? C.muted : C.ink) }, (k ? ' · ' : '') + q[0])); });
+        add(gm, st2); add(svg, gm);
+        return;
+      }
       var ty = Math.max(mt + 4, Math.min(H - mb - 60, yy - 12)), tx = x(n) + 12;
       var g = F.tagG = sv('g', {});
       add(g, sv('line', { x1: x(n) + 4, x2: tx - 2, y1: yy, y2: ty + 11, stroke: C.muted, 'stroke-width': 0.8 }));
       add(g, sv('rect', { x: tx, y: ty, width: mr - 16, height: 22, rx: 2, fill: won ? C.grass : C.purple }));
-      add(g, sv('text', { x: tx + (mr - 16) / 2, y: ty + 15, 'text-anchor': 'middle', class: 'mom-set' }, (won ? 'Federer' : opp).toUpperCase() + ' WINS'));
+      add(g, sv('text', { x: tx + (mr - 16) / 2, y: ty + 15, 'text-anchor': 'middle', class: MOB ? 'mom-set mom-set-s' : 'mom-set' }, (won ? 'Federer' : opp).toUpperCase() + ' WINS'));
       sub.forEach(function (s, k) { add(g, sv('text', { x: tx, y: ty + 40 + k * 16, class: k ? 'lbl' : 'lbl-ink', fill: s[1] || (k ? C.muted : C.ink) }, s[0])); });
       add(svg, g);
     };
@@ -3340,9 +3382,26 @@
         var r = fn(i); showTip(e, r[0], r[1]);
       });
       hit.addEventListener('mouseleave', function () { hideTip(); guide.setAttribute('opacity', 0); });
+      if (MOB) hit.addEventListener('touchmove', function (e) { var t = e.touches && e.touches[0]; if (!t) return; hit.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY, bubbles: true })); }, { passive: true });
       add(svg, hit);
     };
     F.legend = function (items) {
+      if (MOB) {   // phones: the key wraps onto several lines below the chart
+        var lines = [[]], len = 0;
+        items.forEach(function (it, i) {
+          var t = it[0];
+          if (it[1] && i + 1 < items.length) { if (len + t.length + items[i + 1][0].length > 46 && lines[lines.length - 1].length) { lines.push([]); len = 0; } }
+          else if (!it[1] && len + t.length > 46 && lines[lines.length - 1].length && !(i && items[i - 1][1])) { lines.push([]); len = 0; }
+          lines[lines.length - 1].push(it); len += t.length;
+        });
+        lines.forEach(function (ln, k) {
+          var leg2 = sv('text', { x: F.ml, y: H - 8 + k * 15, class: 'callout-sm' });
+          ln.forEach(function (it) { add(leg2, sv('tspan', it[1] ? { fill: it[1] } : {}, it[0].replace(/\s+$/, ' '))); });
+          add(svg, leg2);
+        });
+        svg.setAttribute('viewBox', '0 0 ' + F.W + ' ' + (H + (lines.length - 1) * 15));
+        return;
+      }
       var leg = sv('text', { x: F.ml, y: H - 8, class: 'callout-sm' });
       items.forEach(function (it) { if (it[1]) add(leg, sv('tspan', { fill: it[1] }, it[0])); else add(leg, sv('tspan', {}, it[0])); });
       add(svg, leg);
@@ -3609,7 +3668,7 @@
 
   function setBars(m) {
     var sets = fedSets(m);
-    var W = 960, H = 170, ml = 110, mr = 30;
+    var W = MOB ? 440 : 960, H = 170, ml = MOB ? 80 : 110, mr = MOB ? 14 : 30;
     var svg = svgRoot(W, H);
     var bw = (W - ml - mr) / sets.length;
     add(svg, sv('text', { x: 0, y: 58, class: 'lbl-serif' }, 'Federer'));
@@ -3666,8 +3725,40 @@
   function boot() {
     if (!root) return;
     root.textContent = '';
+    MOB = detectMobile(); document.documentElement.classList.toggle('is-mobile', MOB);
     LOADER = makeLoader();   // the rally plays while the data loads
     if (!window.tableau || !tableau.extensions) { renderError('Extensions API not loaded'); return; }
+    // draw (or redraw) the whole story; a redraw happens when the app crosses the phone breakpoint
+    function renderAll(res) {
+      var oldNav = document.querySelector('.chnav'); if (oldNav && oldNav.parentNode) oldNav.parentNode.removeChild(oldNav);
+      bands.length = 0;
+      var M = res[0], CH = res[1], SH = res[2], SV = res[3];
+        if (!M.length) throw new Error('Federer Matches returned no rows');
+        root.textContent = '';
+        var hero = renderHero(M), arc = renderArc(M), margin = renderMargin(M), riv = renderRivals(M, CH, SH), surf = renderSurfaces(M);
+        var shots = renderShots(M, CH, SH, SV), evo = renderEvolution(M, CH), exp = renderExplorer(M, CH, SH, SV), epi = renderEpilogue(M);
+        var pres = renderPressure(M, CH, function (mk, i) { exp.__open(mk, i); });
+        var ctx = { M: M, CH: CH, SH: SH };
+        var order = [['hero', hero], ['arc', arc], ['margin', margin], ['rivals', riv], ['surf', surf], ['shots', shots], ['evo', evo], ['pres', pres], ['exp', exp]];
+        var after = {};
+        (window.FED_PHOTOS || []).filter(function (ph) { return !ph.hero; }).forEach(function (ph) { (after[ph.after || 'exp'] || (after[ph.after || 'exp'] = [])).push(interlude(ph, ctx)); });
+        var seqNodes = [];
+        order.forEach(function (o) { seqNodes.push(o[1]); (after[o[0]] || []).forEach(function (bnd) { seqNodes.push(bnd); }); });
+        seqNodes.push(epi, renderFooter(M));
+        seqNodes.forEach(function (nd) { add(root, nd); });
+        parallax();
+        chapterNav([['54%', 'The opening', hero], ['I', 'The arc', arc], ['II', 'The margin', margin], ['III', 'Leverage', riv], ['IV', 'Surfaces', surf], ['V', 'Shot by shot', shots],
+          ['VI', 'The evolution', evo], ['VII', 'Pressure', pres], ['VIII', 'The matches', exp], ['IX', 'Epilogue', epi]]);
+    }
+    var LASTRES = null, rzT = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(rzT);
+      rzT = setTimeout(function () {
+        var m = detectMobile(); if (m === MOB || !LASTRES) return;
+        MOB = m; document.documentElement.classList.toggle('is-mobile', MOB);
+        var y = window.scrollY; renderAll(LASTRES); window.scrollTo(0, y);
+      }, 300);
+    });
     tableau.extensions.initializeAsync().then(function () {
       return getDataSources();
     }).then(function (list) {
@@ -3682,23 +3773,7 @@
         });
       });
     }).then(function (res) {
-      var M = res[0], CH = res[1], SH = res[2], SV = res[3];
-      if (!M.length) throw new Error('Federer Matches returned no rows');
-      root.textContent = '';
-      var hero = renderHero(M), arc = renderArc(M), margin = renderMargin(M), riv = renderRivals(M, CH, SH), surf = renderSurfaces(M);
-      var shots = renderShots(M, CH, SH, SV), evo = renderEvolution(M, CH), exp = renderExplorer(M, CH, SH, SV), epi = renderEpilogue(M);
-      var pres = renderPressure(M, CH, function (mk, i) { exp.__open(mk, i); });
-      var ctx = { M: M, CH: CH, SH: SH };
-      var order = [['hero', hero], ['arc', arc], ['margin', margin], ['rivals', riv], ['surf', surf], ['shots', shots], ['evo', evo], ['pres', pres], ['exp', exp]];
-      var after = {};
-      (window.FED_PHOTOS || []).filter(function (ph) { return !ph.hero; }).forEach(function (ph) { (after[ph.after || 'exp'] || (after[ph.after || 'exp'] = [])).push(interlude(ph, ctx)); });
-      var seqNodes = [];
-      order.forEach(function (o) { seqNodes.push(o[1]); (after[o[0]] || []).forEach(function (bnd) { seqNodes.push(bnd); }); });
-      seqNodes.push(epi, renderFooter(M));
-      seqNodes.forEach(function (nd) { add(root, nd); });
-      parallax();
-      chapterNav([['54%', 'The opening', hero], ['I', 'The arc', arc], ['II', 'The margin', margin], ['III', 'Leverage', riv], ['IV', 'Surfaces', surf], ['V', 'Shot by shot', shots],
-        ['VI', 'The evolution', evo], ['VII', 'Pressure', pres], ['VIII', 'The matches', exp], ['IX', 'Epilogue', epi]]);
+      LASTRES = res; renderAll(res);
       LOADER.finish();
     }).catch(function (err) {
       if (LOADER) LOADER.fail();

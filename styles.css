@@ -497,3 +497,59 @@ nav.chnav.show { opacity: 1; pointer-events: auto; }
 .fe-t { font-family: var(--serif); font-size: 22px; line-height: 1.4; color: var(--ink); margin: 0 0 16px; }
 .fe-s { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fe-s .fl { margin-right: 4px; }
+
+/* ================================================================ phone layout (html.is-mobile; set by detectMobile) */
+.is-mobile #app { padding: 0 16px 96px; }
+.is-mobile section.ch { padding: 56px 0 18px; }
+.is-mobile .ch-head h2 { font-size: 28px; line-height: 1.2; }
+.is-mobile .lede { font-size: 17px; line-height: 1.55; }
+.is-mobile h3 { font-size: 20px; }
+/* chart text reads at phone size: viewBoxes are ~440 wide, drawn at ~358px */
+.is-mobile #app svg .lbl, .is-mobile #app .axis text { font-size: 12.5px; }
+.is-mobile #app svg .lbl-ink { font-size: 13px; }
+.is-mobile #app svg .callout { font-size: 15px; }
+.is-mobile #app svg .callout-sm { font-size: 12.5px; }
+.is-mobile #app svg .lbl-serif { font-size: 16px; }
+.is-mobile .mom-set-s { font-size: 9px; letter-spacing: .02em; }
+.is-mobile .chart svg, .is-mobile .mom svg { touch-action: pan-y; }
+/* opening: the number first, the photo after it */
+.is-mobile .hero { min-height: 0; padding: 36px 0 28px; }
+.is-mobile .hero.has-photo .hero-top { grid-template-columns: 1fr; gap: 18px; }
+.is-mobile .hero-photo { order: 2; height: 40vh; min-height: 240px; }
+.is-mobile .hero .big, .is-mobile .hero.has-photo .big { font-size: 132px; }
+.is-mobile .quote { font-size: 18px; }
+.is-mobile .kpis { grid-template-columns: repeat(2, 1fr); }
+.is-mobile .kpi .v { font-size: 26px; }
+/* chapter list becomes a bar along the bottom edge */
+.is-mobile nav.chnav { display: flex; flex-direction: row; top: auto; bottom: 0; left: 0; right: 0; transform: none; gap: 4px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  background: rgba(247, 244, 236, .96); border-top: 1px solid var(--rule); overflow-x: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; z-index: 40; }
+.is-mobile nav.chnav .chn { flex: 0 0 auto; min-width: 40px; padding: 7px 9px; font-size: 11px; }
+/* filter and tab rows scroll sideways instead of wrapping into tall stacks */
+.is-mobile .fgroup, .is-mobile .tabs, .is-mobile .rp-viewbar, .is-mobile .mc-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
+.is-mobile .fgroup::-webkit-scrollbar, .is-mobile .tabs::-webkit-scrollbar, .is-mobile .rp-viewbar::-webkit-scrollbar { display: none; }
+.is-mobile .fgroup .pill, .is-mobile .tabs .pill, .is-mobile .rp-viewbar .seg { flex: 0 0 auto; }
+.is-mobile .filters { gap: 10px; }
+.is-mobile .rp-viewbar { display: flex; }
+/* bigger tap targets */
+.is-mobile .pill, .is-mobile .seg { padding: 8px 14px; font-size: 13px; }
+.is-mobile .rp-ctr .pill { min-width: 44px; min-height: 38px; }
+/* side-by-side layouts stack */
+.is-mobile .courtgrid, .is-mobile .two, .is-mobile .split, .is-mobile .mc-body, .is-mobile .mom-duo, .is-mobile .mom-turns { grid-template-columns: 1fr !important; }
+.is-mobile .rp, .is-mobile .rp-grid, .is-mobile .rp-main { grid-template-columns: 1fr !important; }
+.is-mobile .duo-cell .v { font-size: 26px; }
+.is-mobile .mc-head { font-size: 18px; }
+/* tables: keep the columns that matter */
+.is-mobile table.pat th:nth-child(4), .is-mobile table.pat td:nth-child(4), .is-mobile table.pat th:nth-child(5), .is-mobile table.pat td:nth-child(5) { display: none; }
+.is-mobile table { font-size: 13px; }
+.is-mobile .cards { grid-template-columns: 1fr !important; }
+/* photo bands */
+.is-mobile figure.band { height: 62vh; }
+.is-mobile figure.band.split img { height: 50vh; }
+.is-mobile figure.band .bline { font-size: 22px; }
+/* tooltips fit the screen */
+.is-mobile .tip { max-width: calc(100vw - 32px); }
+.is-mobile table.pat.evo th:nth-child(4), .is-mobile table.pat.evo td:nth-child(4), .is-mobile table.pat.evo th:nth-child(5), .is-mobile table.pat.evo td:nth-child(5) { display: table-cell; }
+.is-mobile table.pat.evo th:nth-child(3), .is-mobile table.pat.evo td:nth-child(3), .is-mobile table.pat.evo th:nth-child(6), .is-mobile table.pat.evo td:nth-child(6) { display: none; }
+.is-mobile .match { padding: 18px 14px 16px; }
+.is-mobile .match h3 { font-size: 24px; }
+.is-mobile .mstats { grid-template-columns: repeat(2, 1fr) !important; }
